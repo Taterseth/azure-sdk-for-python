@@ -50,7 +50,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         # otherwise the tests would take too long to execute
         self.bsc = BlobServiceClient(
             self.account_url(storage_account_name, "blob"),
-            credential=key,
+            credential=key.secret,
             max_single_put_size=1024,
             max_block_size=1024)
         self.config = self.bsc._config
@@ -152,13 +152,14 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
             self.get_resource_name("file"),
             bearer_token_string,
             storage_account_name,
-            source_data
+            source_data,
+            self.is_live
         )
 
         # Set up destination blob without data
         blob_service_client = BlobServiceClient(
             account_url=self.account_url(storage_account_name, "blob"),
-            credential=storage_account_key
+            credential=storage_account_key.secret
         )
         destination_blob_client = blob_service_client.get_blob_client(
             container=self.source_container_name,
@@ -178,13 +179,14 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
             # Assert
             assert destination_blob_data == source_data
         finally:
-            async with aiohttp.ClientSession() as session:
-                await session.delete(
-                    url=base_url,
-                    headers=_build_base_file_share_headers(bearer_token_string, 0),
-                    params={'restype': 'share'}
-                )
-            await blob_service_client.delete_container(self.source_container_name)
+            if self.is_live:
+                async with aiohttp.ClientSession() as session:
+                    await session.delete(
+                        url=base_url,
+                        headers=_build_base_file_share_headers(bearer_token_string, 0),
+                        params={'restype': 'share'}
+                    )
+                await blob_service_client.delete_container(self.source_container_name)
 
     @BlobPreparer()
     @recorded_by_proxy_async
@@ -203,13 +205,14 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
             self.get_resource_name("file"),
             bearer_token_string,
             storage_account_name,
-            source_data
+            source_data,
+            self.is_live
         )
 
         # Set up destination blob without data
         blob_service_client = BlobServiceClient(
             account_url=self.account_url(storage_account_name, "blob"),
-            credential=storage_account_key
+            credential=storage_account_key.secret
         )
         destination_blob_client = blob_service_client.get_blob_client(
             container=self.source_container_name,
@@ -233,13 +236,14 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
             destination_blob_data = await destination_blob.readall()
             assert destination_blob_data == source_data
         finally:
-            async with aiohttp.ClientSession() as session:
-                await session.delete(
-                    url=base_url,
-                    headers=_build_base_file_share_headers(bearer_token_string, 0),
-                    params={'restype': 'share'}
-                )
-            await blob_service_client.delete_container(self.source_container_name)
+            if self.is_live:
+                async with aiohttp.ClientSession() as session:
+                    await session.delete(
+                        url=base_url,
+                        headers=_build_base_file_share_headers(bearer_token_string, 0),
+                        params={'restype': 'share'}
+                    )
+                await blob_service_client.delete_container(self.source_container_name)
 
     @BlobPreparer()
     @recorded_by_proxy_async
@@ -253,7 +257,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         sas = self.generate_sas(
             generate_blob_sas,
             account_name=storage_account_name,
-            account_key=storage_account_key,
+            account_key=storage_account_key.secret,
             container_name=self.container_name,
             blob_name=blob.blob_name,
             permission=BlobSasPermissions(read=True),
@@ -286,7 +290,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         sas = self.generate_sas(
             generate_blob_sas,
             account_name=storage_account_name,
-            account_key=storage_account_key,
+            account_key=storage_account_key.secret,
             container_name=self.container_name,
             blob_name=blob.blob_name,
             permission=BlobSasPermissions(read=True),
@@ -317,7 +321,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         sas = self.generate_sas(
             generate_blob_sas,
             account_name=storage_account_name,
-            account_key=storage_account_key,
+            account_key=storage_account_key.secret,
             container_name=self.container_name,
             blob_name=blob.blob_name,
             permission=BlobSasPermissions(read=True),
@@ -350,7 +354,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         sas = self.generate_sas(
             generate_blob_sas,
             account_name=storage_account_name,
-            account_key=storage_account_key,
+            account_key=storage_account_key.secret,
             container_name=self.container_name,
             blob_name=blob.blob_name,
             permission=BlobSasPermissions(read=True),
@@ -382,7 +386,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         sas = self.generate_sas(
             generate_blob_sas,
             account_name=storage_account_name,
-            account_key=storage_account_key,
+            account_key=storage_account_key.secret,
             container_name=self.container_name,
             blob_name=blob.blob_name,
             permission=BlobSasPermissions(read=True),
@@ -413,7 +417,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         sas = self.generate_sas(
             generate_blob_sas,
             account_name=storage_account_name,
-            account_key=storage_account_key,
+            account_key=storage_account_key.secret,
             container_name=self.container_name,
             blob_name=source_blob.blob_name,
             permission=BlobSasPermissions(read=True),
@@ -450,7 +454,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         sas = self.generate_sas(
             generate_blob_sas,
             account_name=storage_account_name,
-            account_key=storage_account_key,
+            account_key=storage_account_key.secret,
             container_name=self.container_name,
             blob_name=source_blob.blob_name,
             permission=BlobSasPermissions(read=True),
@@ -499,7 +503,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         sas = self.generate_sas(
             generate_blob_sas,
             account_name=storage_account_name,
-            account_key=storage_account_key,
+            account_key=storage_account_key.secret,
             container_name=self.container_name,
             blob_name=source_blob.blob_name,
             permission=BlobSasPermissions(read=True),
@@ -538,7 +542,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         sas = self.generate_sas(
             generate_blob_sas,
             account_name=storage_account_name,
-            account_key=storage_account_key,
+            account_key=storage_account_key.secret,
             container_name=self.container_name,
             blob_name=source_blob.blob_name,
             permission=BlobSasPermissions(read=True),
@@ -575,7 +579,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         sas = self.generate_sas(
             generate_blob_sas,
             account_name=storage_account_name,
-            account_key=storage_account_key,
+            account_key=storage_account_key.secret,
             container_name=self.container_name,
             blob_name=source_blob.blob_name,
             permission=BlobSasPermissions(read=True),
@@ -620,7 +624,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         sas = self.generate_sas(
             generate_blob_sas,
             account_name=storage_account_name,
-            account_key=storage_account_key,
+            account_key=storage_account_key.secret,
             container_name=self.container_name,
             blob_name=source_blob.blob_name,
             permission=BlobSasPermissions(read=True),
@@ -904,7 +908,10 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
 
     @BlobPreparer()
     @recorded_by_proxy_async
-    async def test_put_block_list_with_blob_tier_specified(self, storage_account_name, storage_account_key):
+    async def test_put_block_list_with_blob_tier_specified(self, **kwargs):
+        storage_account_name = kwargs.pop("storage_account_name")
+        storage_account_key = kwargs.pop("storage_account_key")
+
         # Arrange
         await self._setup(storage_account_name, storage_account_key)
         blob_name = self._get_blob_reference()
@@ -925,7 +932,10 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
 
     @BlobPreparer()
     @recorded_by_proxy_async
-    async def test_put_block_list_with_blob_tier_specified_cold(self, storage_account_name, storage_account_key):
+    async def test_put_block_list_with_blob_tier_specified_cold(self, **kwargs):
+        storage_account_name = kwargs.pop("storage_account_name")
+        storage_account_key = kwargs.pop("storage_account_key")
+
         # Arrange
         await self._setup(storage_account_name, storage_account_key)
         blob_name = self._get_blob_reference()
@@ -1414,7 +1424,10 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
 
     @BlobPreparer()
     @recorded_by_proxy_async
-    async def test_create_blob_from_bytes_with_blob_tier_specified(self, storage_account_name, storage_account_key):
+    async def test_create_blob_from_bytes_with_blob_tier_specified(self, **kwargs):
+        storage_account_name = kwargs.pop("storage_account_name")
+        storage_account_key = kwargs.pop("storage_account_key")
+
         # Arrange
         await self._setup(storage_account_name, storage_account_key)
         blob_name = self._get_blob_reference()
@@ -1480,7 +1493,10 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
 
     @BlobPreparer()
     @recorded_by_proxy_async
-    async def test_upload_blob_from_path_non_parallel_with_standard_blob_tier(self, storage_account_name, storage_account_key):
+    async def test_upload_blob_from_path_non_parallel_with_standard_blob_tier(self, **kwargs):
+        storage_account_name = kwargs.pop("storage_account_name")
+        storage_account_key = kwargs.pop("storage_account_key")
+
         # Arrange
         await self._setup(storage_account_name, storage_account_key)
         blob_name = self._get_blob_reference()
@@ -1904,7 +1920,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         blob_client = BlobClient(
             self.account_url(storage_account_name, 'blob'),
             self.container_name, blob_name,
-            credential=storage_account_key)
+            credential=storage_account_key.secret)
 
         await blob_client.upload_blob(
             data,
@@ -1932,7 +1948,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         blob_client = BlobClient(
             self.account_url(storage_account_name, 'blob'),
             self.container_name, blob_name,
-            credential=storage_account_key,
+            credential=storage_account_key.secret,
             max_single_put_size=1024, max_block_size=1024)
 
         await blob_client.upload_blob(
@@ -1962,7 +1978,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         blob_client = BlobClient(
             self.account_url(storage_account_name, 'blob'),
             self.container_name, blob_name,
-            credential=storage_account_key,
+            credential=storage_account_key.secret,
             max_single_put_size=1024, max_block_size=1024)
 
         await blob_client.upload_blob(
@@ -1993,7 +2009,7 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
         blob_client = BlobClient(
             self.account_url(storage_account_name, 'blob'),
             self.container_name, blob_name,
-            credential=storage_account_key,
+            credential=storage_account_key.secret,
             max_single_put_size=1024, max_block_size=1024)
 
         await blob_client.upload_blob(
@@ -2085,5 +2101,22 @@ class TestStorageBlockBlobAsync(AsyncStorageRecordedTestCase):
             assert e.value.response.headers["x-ms-copy-source-error-code"] == "NoAuthenticationInformation"
         finally:
             await self.bsc.delete_container(self.container_name)
+
+    @BlobPreparer()
+    @recorded_by_proxy_async
+    async def test_put_block_blob_with_none_concurrency(self, **kwargs):
+        storage_account_name = kwargs.pop("storage_account_name")
+        storage_account_key = kwargs.pop("storage_account_key")
+
+        await self._setup(storage_account_name, storage_account_key)
+        blob_name = self._get_blob_reference()
+        blob = self.bsc.get_blob_client(self.container_name, blob_name)
+        data = b'a' * 5 * 1024
+
+        # max_concurrency=None should not raise TypeError
+        await blob.upload_blob(data, max_concurrency=None, overwrite=True)
+
+        content = await (await blob.download_blob()).readall()
+        assert data == content
 
 # ------------------------------------------------------------------------------

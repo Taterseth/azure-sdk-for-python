@@ -1,17 +1,215 @@
 # Release History
 
-## 1.10.0 (Unreleased)
-
-### Breaking Changes
-- Added `_evaluate_query` parameter to `RaiServiceEvaluatorBase` class with a default value of `False`. This parameter controls whether queries are included in evaluation data when evaluating query-response pairs. Previously, queries were always included in evaluations. Existing code that relies on queries being evaluated will need to explicitly set `_evaluate_query=True` to maintain the previous behavior.
+## 1.16.2 (Unreleased)
 
 ### Features Added
+
+### Breaking Changes
+
+### Bugs Fixed
+- Fixed adversarial chat target incorrectly using user's callback instead of RAI service, causing callback response to appear as user message in red team scan results when using converter strategies (e.g., `DIFFICULT`, `Tense`).
+- Fixed `hate_unfairness` attack success rate always reporting 0% due to metric name mapping using legacy `hate_fairness` name instead of canonical `hate_unfairness`.
+- Fixed `TypeError` in multi-turn and crescendo attacks caused by PyRIT 0.11+ renaming `send_prompt_async` parameter from `prompt_request` to `message`.
+- Expanded endpoint normalization (`/openai/v1` suffix) to all Azure OpenAI host suffixes (including sovereign clouds), fixing 404 errors for classic AOAI endpoints with PyRIT 0.11+.
+- Added `aml-aca-token` credential fallback for agent-type seed requests when running locally without ACA managed identity.
+
+## 1.16.1 (2026-03-18)
+
+### Features Added
+
+- Agentic evaluators (Groundedness, ToolCallAccuracy, ToolCallSuccess, ToolInputAccuracy, ToolOutputUtilization, ToolSelection) now accept plain string inputs directly, skipping structured parsing when string format is provided.
+
+### Bugs Fixed
+- Fixed inconsistency where sample data in evaluation result items did not match the generated sample data from corresponding input rows, ensuring proper synchronization between row-level input samples and their associated evaluation output items.
+- Fixed indirect jailbreak (XPIA) `ValueError` when targeting models by converting `binary_path` file-based context prompts to inline text before invoking the callback target.
+- Fixed content-filter responses showing raw JSON API payloads in red team results by detecting blocked responses and replacing them with human-readable messages.
+- Fixed missing `token_usage` on row-level output items for agent targets using the Foundry execution path by extracting usage data from piece labels.
+- Fixed 7 backwards-compatibility bugs with the `_use_legacy_endpoint=True` feature flag including metric name mapping, result parsing, conversation evaluation mode, and Foundry scorer integration.
+
+## 1.16.0 (2026-03-10)
+
+### Bugs Fixed
+- Fixed `UnicodeDecodeError` on Windows when reading red team JSONL files containing non-ASCII characters (UnicodeConfusable strategy, CJK languages) by adding explicit `encoding="utf-8"` to all file open calls in the result processing path.
+- Fixed `NotFoundError: 404` when using `model_config` dict target with Foundry-style endpoints (`*.services.ai.azure.com`) by appending `/openai/v1` to the endpoint URL for PyRIT compatibility.
+- Fixed red team scan status stuck at `in_progress` in results.json despite the scan completing, by treating leftover `pending` entries as `failed`.
+- Fixed `ungrounded_attributes` risk category being silently skipped due to a cache key mismatch (`isa` vs `ungrounded_attributes`) in the Foundry execution path.
+- Fixed RAI evaluation service errors (`ServiceInvocationException`) incorrectly inflating attack success rate by treating error responses as undetermined instead of attack success.
+- Fixed Foundry red team double-evaluation that caused ~3x scan latency by removing redundant evaluation_processor.evaluate() call.
+- Fixed lost red team attack details where baseline overwrites wiped evaluation results.
+- Fixed incorrect per_testing_criteria that showed attack strategies alongside risk categories.
+- Fixed metadata leak of internal scorer fields (attack_success, attack_strategy, score) into results.json.
+- Improved error logging with run_id, display_name, and full stack traces for red team scan failures.
+- Fixed httpx read timeout errors during red team scans by configuring explicit HTTP timeout on PyRIT OpenAIChatTarget instances (default: 180s, configurable via `_http_timeout` scan kwarg).
+- Fixed `InvalidInputError` crash when evaluating agent tool output containing unresolvable relative image paths from Document Intelligence indexed PDFs, by gracefully falling back to text representation.
+- Fixed `InvalidInputError` crash on markdown image references with empty alt text (e.g. `![](figures/14.2)`) from Document Intelligence by allowing empty alt text in the image URL parser.
+
+## 1.15.2 (2026-02-23)
+
+### Bugs Fixed
+
+- Fixed batch evaluation to report per-line errors only on the rows that failed.
+
+## 1.15.1 (2026-02-19)
+
+### Bugs Fixed
+
+- Red Team Agent Scenario Integration: integrated PyRIT's FoundryScenario for attack orchestration with Azure-specific scoring and result processing.
+- Fixed total tokens calculation errors in evaluation results.
+- Fixed red team SDK run status updates not firing consistently, preventing runs from being stuck as "Running" in the UI.
+
+## 1.15.0 (2026-02-03)
+
+### Bugs Fixed
+
+- Prevent recursive stdout/stderr forwarding when NodeLogManager is nested, avoiding RecursionError in concurrent evaluation runs.
+
+### Other Changes
+
+- The `[redteam]` extra now requires `pyrit==0.11.0`, which depends on `pillow>=12.1.0`. This conflicts with `promptflow-devkit` (`pillow<=11.3.0`). Use separate virtual environments if you need both packages.
+
+## 1.14.0 (2026-01-05)
+
+### Bugs Fixed
+
+- Updated CodeVulnerability and UngroundedAttributes evaluators for RedTeam to use the binary true/false scoring pattern so their results align with service responses.
+- Fixed handling of nested fields for AOAI graders when using files as datasource 
+- Fixed `GroundednessEvaluator` with `query` not honoring `is_reasoning_model` (and `credential`) when reloading the query prompty, which could cause `max_tokens` to be sent to reasoning models. [#44385](https://github.com/Azure/azure-sdk-for-python/issues/44385)
+
+## 1.13.7 (2025-11-14)
+
+### Bugs Fixed
+
+- Fixed NoneType error when generating usage summary in evaluation results.
+- Fixed results for f1_score.
+
+## 1.13.6 (2025-11-12)
+
+### Bugs Fixed
+
+- Added detection and retry handling for network errors wrapped in generic exceptions with "Error sending prompt with conversation ID" message
+- Fix results for ungrounded_attributes
+- score_mode grader improvements
+- fix for Red Team to ensure hate/unfairness evaluation rows populate when OneDP sync evaluators report results under the hate_unfairness metric name.
+
+## 1.13.5 (2025-11-10)
+
+### Bugs Fixed
+
+- **TaskAdherenceEvaluator:** treat tool definitions as optional so evaluations with only query/response inputs no longer raise “Either 'conversation' or individual inputs must be provided.”
+
+## 1.13.4 (2025-11-10)
+
+### Bugs Fixed
+
+- Handle input data for evaluation result when evaluators.
+
+## 1.13.3 (2025-11-08)
+
+### Other Changes
+
+- Added `scenario` property to red team evaluation request to align scores with red team concepts of attack success.
+
+## 1.13.2 (2025-11-07)
+
+### Bugs Fixed
+
+- Added App Insights redaction for agent safety run telemetry so adversarial prompts are not stored in collected logs.
+
+## 1.13.1 (2025-11-05)
+
+### Features Added
+
+- Improved RedTeam coverage across risk sub-categories to ensure comprehensive security testing
+- Made RedTeam's `AttackStrategy.Tense` seed prompts dynamic to allow use of this strategy with additional risk categories
+- Refactors error handling and result semantics in the RedTeam evaluation system to improve clarity and align with Attack Success Rate (ASR) conventions (passed=False means attack success)
+
+### Bugs Fixed
+
+- Fixed RedTeam evaluation error related to context handling for context-dependent risk categories
+- Fixed RedTeam prompt application for model targets during Indirect Jailbreak XPIA (Cross-Platform Indirect Attack)
+
+## 1.13.0 (2025-10-30)
+
+### Features Added
+
+- Updated `IndirectAttack` risk category for RedTeam to `IndirectJailbreak` to better reflect its purpose. This change allows users to apply cross-domain prompt injection (XPIA) attack strategies across all risk categories, enabling more comprehensive security testing of AI systems against indirect prompt injection attacks during red teaming.
+- Added `TaskAdherence`, `SensitiveDataLeakage`, and `ProhibitedActions` as cloud-only agent safety risk categories for red teaming. 
+- Updated all evaluators' output to be of the following schema:
+  - `gpt_{evaluator_name}`, `{evaluator_name}`: float score,
+  - `{evaluator_name}_result`: pass/fail based on threshold,
+  - `{evaluator_name}_reason`, `{evaluator_name}_threshold`
+  - `{evaluator_name}_prompt_tokens`, `{evaluator_name}_completion_tokens`, `{evaluator_name}_total_tokens`, `{evaluator_name}_finish_reason`
+  - `{evaluator_name}_model`: model used for evaluation
+  - `{evaluator_name}_sample_input`, `{evaluator_name}_sample_output`: input and output used for evaluation
+  
+  This change standardizes the output format across all evaluators and follows OTel convention.
+
+### Bugs Fixed
+
+- `image_tag` parameter in `AzureOpenAIPythonGrader` is now optional.
+
+## 1.11.2 (2025-10-09)
+
+### Bugs Fixed
+
+- **kwargs in an evaluator signature receives input columns that are not otherwise named in the evaluator's signature
+
+## 1.12.0 (2025-10-02)
+
+### Features Added
+- AOAI Graders now accept a "credential" parameter that can be used for authentication with an AzureOpenAIModelConfiguration
+- Added `is_reasoning_model` parameter support to `CoherenceEvaluator`, `FluencyEvaluator`, `SimilarityEvaluator`, `GroundednessEvaluator`, `RetrievalEvaluator`, and `RelevanceEvaluator` to enable reasoning model configuration for o1/o3 models.
+
+### Bugs Fixed
+- Support for multi-level nesting in OpenAI grader (experimental)
+
+## 1.11.1 (2025-09-19)
+
+### Bugs Fixed
+- Pinning duckdb version to 1.3.2 for redteam extra to fix error `TypeError: unhashable type: '_duckdb.typing.DuckDBPyType'`
+
+## 1.11.0 (2025-09-03)
+
+### Features Added
+- Added support for user-supplied tags in the `evaluate` function. Tags are key-value pairs that can be used for experiment tracking, A/B testing, filtering, and organizing evaluation runs. The function accepts a `tags` parameter.
+- Added support for user-supplied TokenCredentials with LLM based evaluators.
+- Enhanced `GroundednessEvaluator` to support AI agent evaluation with tool calls. The evaluator now accepts agent response data containing tool calls and can extract context from `file_search` tool results for groundedness assessment. This enables evaluation of AI agents that use tools to retrieve information and generate responses. Note: Agent groundedness evaluation is currently supported only when the `file_search` tool is used.
+- Added `language` parameter to `RedTeam` class for multilingual red team scanning support. The parameter accepts values from `SupportedLanguages` enum including English, Spanish, French, German, Italian, Portuguese, Japanese, Korean, and Simplified Chinese, enabling red team attacks to be generated and conducted in multiple languages.
+- Added support for IndirectAttack and UngroundedAttributes risk categories in `RedTeam` scanning. These new risk categories expand red team capabilities to detect cross-platform indirect attacks and evaluate ungrounded inferences about human attributes including emotional state and protected class information.
+
+### Bugs Fixed
+- Fixed issue where evaluation results were not properly aligned with input data, leading to incorrect metrics being reported.
+
+### Other Changes
+- Deprecating `AdversarialSimulator` in favor of the [AI Red Teaming Agent](https://aka.ms/airedteamingagent-sample). `AdversarialSimulator` will be removed in the next minor release. 
+- Moved retry configuration constants (`MAX_RETRY_ATTEMPTS`, `MAX_RETRY_WAIT_SECONDS`, `MIN_RETRY_WAIT_SECONDS`) from `RedTeam` class to new `RetryManager` class for better code organization and configurability.
+
+## 1.10.0 (2025-07-31)
+
+### Breaking Changes
+
+- Added `evaluate_query` parameter to all RAI service evaluators that can be passed as a keyword argument. This parameter controls whether queries are included in evaluation data when evaluating query-response pairs. Previously, queries were always included in evaluations. When set to `True`, both query and response will be evaluated; when set to `False` (default), only the response will be evaluated. This parameter is available across all RAI service evaluators including `ContentSafetyEvaluator`, `ViolenceEvaluator`, `SexualEvaluator`, `SelfHarmEvaluator`, `HateUnfairnessEvaluator`, `ProtectedMaterialEvaluator`, `IndirectAttackEvaluator`, `CodeVulnerabilityEvaluator`, `UngroundedAttributesEvaluator`, `GroundednessProEvaluator`, and `EciEvaluator`.  Existing code that relies on queries being evaluated will need to explicitly set `evaluate_query=True` to maintain the previous behavior.
+
+### Features Added
+
+- Added support for Azure OpenAI Python grader via `AzureOpenAIPythonGrader` class, which serves as a wrapper around Azure Open AI Python grader configurations. This new grader object can be supplied to the main `evaluate` method as if it were a normal callable evaluator.
+- Added `attack_success_thresholds` parameter to `RedTeam` class for configuring custom thresholds that determine attack success. This allows users to set specific threshold values for each risk category, with scores greater than the threshold considered successful attacks (i.e. higher threshold means higher 
+tolerance for harmful responses).
+- Enhanced threshold reporting in RedTeam results to include default threshold values when custom thresholds aren't specified, providing better transparency about the evaluation criteria used.
+
 
 ### Bugs Fixed
 
 - Fixed red team scan `output_path` issue where individual evaluation results were overwriting each other instead of being preserved as separate files. Individual evaluations now create unique files while the user's `output_path` is reserved for final aggregated results.
 - Significant improvements to TaskAdherence evaluator. New version has less variance, is much faster and consumes fewer tokens.
 - Significant improvements to Relevance evaluator. New version has more concrete rubrics and has less variance, is much faster and consumes fewer tokens.
+
+
+### Other Changes
+
+- The default engine for evaluation was changed from `promptflow` (PFClient) to an in-SDK batch client (RunSubmitterClient)
+  - Note: We've temporarily kept an escape hatch to fall back to the legacy `promptflow` implementation by setting `_use_pf_client=True` when invoking `evaluate()`.
+    This is due to be removed in a future release.
 
 
 ## 1.9.0 (2025-07-02)
@@ -29,6 +227,7 @@
 - Fixes and improvements to ToolCallAccuracy evaluator. New version has less variance. and now works on all tool calls that happen in a turn at once. Previously, it worked on each tool call independently without having context on the other tool calls that happen in the same turn, and then aggregated the results to a score in the range [0-1]. The score range is now [1-5].
 - Fixed MeteorScoreEvaluator and other threshold-based evaluators returning incorrect binary results due to integer conversion of decimal scores. Previously, decimal scores like 0.9375 were incorrectly converted to integers (0) before threshold comparison, causing them to fail even when above the threshold. [#41415](https://github.com/Azure/azure-sdk-for-python/issues/41415)
 - Added a new enum `ADVERSARIAL_QA_DOCUMENTS` which moves all the "file_content" type prompts away from `ADVERSARIAL_QA` to the new enum
+- `AzureOpenAIScoreModelGrader` evaluator now supports `pass_threshold` parameter to set the minimum score required for a response to be considered passing. This allows users to define custom thresholds for evaluation results, enhancing flexibility in grading AI model responses.
 
 ## 1.8.0 (2025-05-29)
 

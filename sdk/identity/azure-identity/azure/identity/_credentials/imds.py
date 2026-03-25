@@ -6,9 +6,11 @@ import os
 import json
 from typing import Any, Optional, Dict
 
+from azure.core.pipeline import PipelineResponse
 from azure.core.exceptions import ClientAuthenticationError, HttpResponseError
-from azure.core.pipeline.transport import HttpRequest
+from azure.core.rest import HttpRequest
 from azure.core.credentials import AccessTokenInfo
+from azure.core.pipeline.policies import RetryPolicy
 
 from .. import CredentialUnavailableError
 from .._constants import EnvironmentVariables
@@ -31,14 +33,34 @@ PIPELINE_SETTINGS = {
 }
 
 
+class ImdsRetryPolicy(RetryPolicy):
+    """Custom retry policy for IMDS credential with extended retry duration for 410 responses.
+
+    This policy ensures that specifically for 410 status codes, the total exponential backoff duration
+    is at least 70 seconds to handle temporary IMDS endpoint unavailability.
+    For other status codes, it uses the standard retry behavior.
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        # Increased backoff factor to ensure at least 70 seconds retry duration for 410 responses.
+        # Five retries, with each retry sleeping for [0.0s, 5.0s, 10.0s, 20.0s, 40.0s] between attempts (75s total)
+        self.backoff_factor_for_410 = 2.5
+        super().__init__(**kwargs)
+
+    def is_retry(self, settings: Dict[str, Any], response: PipelineResponse[Any, Any]) -> bool:
+        if response.http_response.status_code == 410:
+            settings["backoff"] = self.backoff_factor_for_410
+        else:
+            settings["backoff"] = self.backoff_factor
+        return super().is_retry(settings, response)
+
+
 def _get_request(scope: str, identity_config: Dict) -> HttpRequest:
     url = (
         os.environ.get(EnvironmentVariables.AZURE_POD_IDENTITY_AUTHORITY_HOST, IMDS_AUTHORITY).strip("/")
         + IMDS_TOKEN_PATH
     )
-    request = HttpRequest("GET", url)
-    request.format_parameters(dict({"api-version": "2018-02-01", "resource": scope}, **identity_config))
-    return request
+    return HttpRequest("GET", url, params=dict({"api-version": "2018-02-01", "resource": scope}, **identity_config))
 
 
 def _check_forbidden_response(ex: HttpResponseError) -> None:
@@ -58,7 +80,11 @@ def _check_forbidden_response(ex: HttpResponseError) -> None:
 
 class ImdsCredential(MsalManagedIdentityClient):
     def __init__(self, **kwargs: Any) -> None:
-        super(ImdsCredential, self).__init__(**kwargs)
+        # If set to True/False, _enable_imds_probe forces whether or not the credential
+        # probes for the IMDS endpoint before attempting to get a token. If None (the default),
+        # the credential probes only if it's part of a ChainedTokenCredential chain.
+        self._enable_imds_probe = kwargs.pop("_enable_imds_probe", None)
+        super().__init__(retry_policy_class=ImdsRetryPolicy, **dict(PIPELINE_SETTINGS, **kwargs))
         self._config = kwargs
 
         if EnvironmentVariables.AZURE_POD_IDENTITY_AUTHORITY_HOST in os.environ:
@@ -78,9 +104,9 @@ class ImdsCredential(MsalManagedIdentityClient):
 
     def _request_token(self, *scopes: str, **kwargs: Any) -> AccessTokenInfo:
 
-        if within_credential_chain.get() and not self._endpoint_available:
-            # If within a chain (e.g. DefaultAzureCredential), we do a quick check to see if the IMDS endpoint
-            # is available to avoid hanging for a long time if the endpoint isn't available.
+        do_probe = self._enable_imds_probe if self._enable_imds_probe is not None else within_credential_chain.get()
+        if do_probe and not self._endpoint_available:
+            # Probe to see if the IMDS endpoint is available to avoid hanging for a long time if it's not.
             try:
                 client = ManagedIdentityClient(_get_request, **dict(PIPELINE_SETTINGS, **self._config))
                 client.request_token(*scopes, connection_timeout=1, retry_total=0)
@@ -96,7 +122,7 @@ class ImdsCredential(MsalManagedIdentityClient):
                 raise CredentialUnavailableError(error_message) from ex
 
         try:
-            token_info = super()._request_token(*scopes)
+            token_info = super()._request_token(*scopes, **kwargs)
         except CredentialUnavailableError:
             # Response is not json, skip the IMDS credential
             raise

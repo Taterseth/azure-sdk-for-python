@@ -20,7 +20,7 @@ import os
 import asyncio
 from azure.communication.phonenumbers.siprouting.aio import SipRoutingClient
 
-connection_string = os.getenv("COMMUNICATION_SAMPLES_CONNECTION_STRING")
+connection_string = os.environ["COMMUNICATION_SAMPLES_CONNECTION_STRING"]
 client = SipRoutingClient.from_connection_string(connection_string)
 
 
@@ -33,7 +33,7 @@ async def get_sip_routes_sample():
             print(route.description)
             print(route.number_pattern)
 
-            for trunk_fqdn in route.trunks:
+            for trunk_fqdn in route.trunks or []:
                 print(trunk_fqdn)
 
 

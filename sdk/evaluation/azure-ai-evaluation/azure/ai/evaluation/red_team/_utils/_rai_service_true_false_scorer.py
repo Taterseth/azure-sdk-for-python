@@ -5,10 +5,12 @@
 import logging
 from typing import List, Optional
 
-from pyrit.models import Score, PromptRequestPiece, UnvalidatedScore
+from pyrit.models import Score, MessagePiece, UnvalidatedScore
 from pyrit.score.scorer import Scorer
 
-from azure.ai.evaluation.simulator._model_tools._generated_rai_client import GeneratedRAIClient
+from azure.ai.evaluation.simulator._model_tools._generated_rai_client import (
+    GeneratedRAIClient,
+)
 from ._rai_service_eval_chat_target import RAIServiceEvalChatTarget
 from .._attack_objective_generator import RiskCategory
 
@@ -37,6 +39,8 @@ class AzureRAIServiceTrueFalseScorer(Scorer):
         model: Optional[str] = None,
         prompt_template_key: Optional[str] = None,
         logger: Optional[logging.Logger] = None,
+        context: Optional[str] = None,
+        **kwargs,
     ) -> None:
         """Initialize the scorer.
 
@@ -52,6 +56,7 @@ class AzureRAIServiceTrueFalseScorer(Scorer):
         self._model = model
         self._prompt_template_key = prompt_template_key
         self.logger = logger
+        self.context = context
 
         # Use AzureRAIServiceTarget for scoring as well
         self._scoring_target_red_llm = RAIServiceEvalChatTarget(
@@ -59,11 +64,13 @@ class AzureRAIServiceTrueFalseScorer(Scorer):
             credential=credential,
             azure_ai_project=azure_ai_project,
             risk_category=risk_category,
+            context=context,
+            _use_legacy_endpoint=kwargs.get("_use_legacy_endpoint", False),
         )
 
     async def score_async(
         self,
-        request_response: PromptRequestPiece,
+        request_response: MessagePiece,
         *,
         task: Optional[str] = None,
     ) -> List[Score]:
@@ -77,6 +84,9 @@ class AzureRAIServiceTrueFalseScorer(Scorer):
 
         # Validate request_response
         self.validate(request_response, task=task)
+
+        if not self._scoring_target_red_llm.context:
+            self._scoring_target_red_llm.context = request_response.labels.get("context", "")
 
         unvalidated_score: UnvalidatedScore = await self._score_value_with_llm(
             prompt_target=self._scoring_target_red_llm,

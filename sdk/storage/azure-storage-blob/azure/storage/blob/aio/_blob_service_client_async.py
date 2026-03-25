@@ -135,8 +135,7 @@ class BlobServiceClient(  # type: ignore [misc]
         _, sas_token = parse_query(parsed_url.query)
         self._query_str, credential = self._format_query_string(sas_token, credential)
         super(BlobServiceClient, self).__init__(parsed_url, service='blob', credential=credential, **kwargs)
-        self._client = AzureBlobStorage(self.url, base_url=self.url, pipeline=self._pipeline)
-        self._client._config.version = get_api_version(kwargs)  # type: ignore [assignment]
+        self._client = AzureBlobStorage(self.url, get_api_version(kwargs), base_url=self.url, pipeline=self._pipeline)
         self._configure_encryption(kwargs)
 
     async def __aenter__(self) -> Self:
@@ -155,7 +154,7 @@ class BlobServiceClient(  # type: ignore [misc]
         """
         await self._client.close()
 
-    def _format_url(self, hostname):
+    def _format_url(self, hostname: str) -> str:
         """Format the endpoint URL according to the current location
         mode hostname.
 
@@ -190,6 +189,27 @@ class BlobServiceClient(  # type: ignore [misc]
             ~azure.core.credentials.AzureSasCredential or
             ~azure.core.credentials_async.AsyncTokenCredential or
             str or dict[str, str] or None
+        :keyword str api_version:
+            The Storage API version to use for requests. Default value is the most recent service version that is
+            compatible with the current SDK. Setting to an older version may result in reduced feature compatibility.
+
+            .. versionadded:: 12.2.0
+
+        :keyword str secondary_hostname:
+            The hostname of the secondary endpoint.
+        :keyword int max_block_size: The maximum chunk size for uploading a block blob in chunks.
+            Defaults to 4*1024*1024, or 4MB.
+        :keyword int max_single_put_size: If the blob size is less than or equal max_single_put_size, then the blob will
+            be uploaded with only one http PUT request. If the blob size is larger than max_single_put_size,
+            the blob will be uploaded in chunks. Defaults to 64*1024*1024, or 64MB.
+        :keyword int min_large_block_upload_threshold: The minimum chunk size required to use the memory efficient
+            algorithm when uploading a block blob. Defaults to 4*1024*1024+1.
+        :keyword bool use_byte_buffer: Use a byte buffer for block blob uploads. Defaults to False.
+        :keyword int max_page_size: The maximum chunk size for uploading a page blob. Defaults to 4*1024*1024, or 4MB.
+        :keyword int max_single_get_size: The maximum size for a blob to be downloaded in a single call,
+            the exceeded part will be downloaded in chunks (could be parallel). Defaults to 32*1024*1024, or 32MB.
+        :keyword int max_chunk_get_size: The maximum chunk size used for downloading a blob. Defaults to 4*1024*1024,
+            or 4MB.
         :keyword str audience: The audience to use when requesting tokens for Azure Active Directory
             authentication. Only has an effect when credential is of type TokenCredential. The value could be
             https://storage.azure.com/ (default) or https://<account>.blob.core.windows.net.
@@ -214,6 +234,8 @@ class BlobServiceClient(  # type: ignore [misc]
     async def get_user_delegation_key(
         self, key_start_time: "datetime",
         key_expiry_time: "datetime",
+        *,
+        delegated_user_tid: Optional[str] = None,
         **kwargs: Any
     ) -> "UserDelegationKey":
         """
@@ -224,6 +246,7 @@ class BlobServiceClient(  # type: ignore [misc]
             A DateTime value. Indicates when the key becomes valid.
         :param ~datetime.datetime key_expiry_time:
             A DateTime value. Indicates when the key stops being valid.
+        :keyword str delegated_user_tid: The delegated user tenant id in Entra ID.
         :keyword int timeout:
             Sets the server-side timeout for the operation in seconds. For more details see
             https://learn.microsoft.com/rest/api/storageservices/setting-timeouts-for-blob-service-operations.
@@ -233,7 +256,11 @@ class BlobServiceClient(  # type: ignore [misc]
         :return: The user delegation key.
         :rtype: ~azure.storage.blob.UserDelegationKey
         """
-        key_info = KeyInfo(start=_to_utc_datetime(key_start_time), expiry=_to_utc_datetime(key_expiry_time))
+        key_info = KeyInfo(
+            start=_to_utc_datetime(key_start_time),
+            expiry=_to_utc_datetime(key_expiry_time),
+            delegated_user_tid=delegated_user_tid
+        )
         timeout = kwargs.pop('timeout', None)
         try:
             user_delegation_key = await self._client.service.get_user_delegation_key(key_info=key_info,
@@ -252,7 +279,7 @@ class BlobServiceClient(  # type: ignore [misc]
         The keys in the returned dictionary include 'sku_name' and 'account_kind'.
 
         :return: A dict of account information (SKU and account type).
-        :rtype: dict(str, str)
+        :rtype: Dict[str, str]
 
         .. admonition:: Example:
 
@@ -545,7 +572,7 @@ class BlobServiceClient(  # type: ignore [misc]
         :param metadata:
             A dict with name-value pairs to associate with the
             container as metadata. Example: `{'Category':'test'}`
-        :type metadata: dict(str, str)
+        :type metadata: Dict[str, str]
         :param public_access:
             Possible values include: 'container', 'blob'.
         :type public_access: str or ~azure.storage.blob.PublicAccess
@@ -775,7 +802,7 @@ class BlobServiceClient(  # type: ignore [misc]
             The optional blob snapshot on which to operate. This can either be the ID of the snapshot,
             or a dictionary output returned by
             :func:`~azure.storage.blob.aio.BlobClient.create_snapshot()`.
-        :type snapshot: str or dict(str, Any)
+        :type snapshot: str or Dict[str, Any]
         :keyword str version_id: The version id parameter is an opaque DateTime value that, when present,
             specifies the version of the blob to operate on.
         :return: A BlobClient.

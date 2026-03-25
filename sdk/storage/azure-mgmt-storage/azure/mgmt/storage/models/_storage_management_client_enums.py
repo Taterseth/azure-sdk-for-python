@@ -46,7 +46,11 @@ class AccountStatus(str, Enum, metaclass=CaseInsensitiveEnumMeta):
 
 
 class AccountType(str, Enum, metaclass=CaseInsensitiveEnumMeta):
-    """Specifies the Active Directory account type for Azure Storage."""
+    """Specifies the Active Directory account type for Azure Storage. If directoryServiceOptions is
+    set to AD (AD DS authentication), this property is optional. If provided, samAccountName should
+    also be provided. For directoryServiceOptions AADDS (Entra DS authentication) or AADKERB (Entra
+    authentication), this property can be omitted.
+    """
 
     USER = "User"
     COMPUTER = "Computer"
@@ -244,6 +248,15 @@ class ImmutabilityPolicyUpdateType(str, Enum, metaclass=CaseInsensitiveEnumMeta)
     EXTEND = "extend"
 
 
+class IntervalUnit(str, Enum, metaclass=CaseInsensitiveEnumMeta):
+    """Run interval unit of task execution. This is a required field when
+    ExecutionTrigger.properties.type is 'OnSchedule'; this property should not be present when
+    ExecutionTrigger.properties.type is 'RunOnce'.
+    """
+
+    DAYS = "Days"
+
+
 class InventoryRuleType(str, Enum, metaclass=CaseInsensitiveEnumMeta):
     """The valid value is Inventory."""
 
@@ -308,7 +321,6 @@ class LeaseContainerRequestEnum(str, Enum, metaclass=CaseInsensitiveEnumMeta):
     CHANGE = "Change"
     RELEASE = "Release"
     BREAK = "Break"
-    BREAK_ENUM = "Break"
 
 
 class LeaseDuration(str, Enum, metaclass=CaseInsensitiveEnumMeta):
@@ -328,7 +340,6 @@ class LeaseShareAction(str, Enum, metaclass=CaseInsensitiveEnumMeta):
     CHANGE = "Change"
     RELEASE = "Release"
     BREAK = "Break"
-    BREAK_ENUM = "Break"
 
 
 class LeaseState(str, Enum, metaclass=CaseInsensitiveEnumMeta):
@@ -416,7 +427,9 @@ class Name(str, Enum, metaclass=CaseInsensitiveEnumMeta):
     ACCESS_TIME_TRACKING = "AccessTimeTracking"
 
 
-class NetworkSecurityPerimeterConfigurationProvisioningState(str, Enum, metaclass=CaseInsensitiveEnumMeta):
+class NetworkSecurityPerimeterConfigurationProvisioningState(  # pylint: disable=name-too-long
+    str, Enum, metaclass=CaseInsensitiveEnumMeta
+):
     """Provisioning state of Network Security Perimeter configuration propagation."""
 
     ACCEPTED = "Accepted"
@@ -473,7 +486,9 @@ class PostPlannedFailoverRedundancy(str, Enum, metaclass=CaseInsensitiveEnumMeta
     STANDARD_RAGZRS = "Standard_RAGZRS"
 
 
-class PrivateEndpointConnectionProvisioningState(str, Enum, metaclass=CaseInsensitiveEnumMeta):
+class PrivateEndpointConnectionProvisioningState(  # pylint: disable=name-too-long
+    str, Enum, metaclass=CaseInsensitiveEnumMeta
+):
     """The current provisioning state."""
 
     SUCCEEDED = "Succeeded"
@@ -713,3 +728,10 @@ class UsageUnit(str, Enum, metaclass=CaseInsensitiveEnumMeta):
     PERCENT = "Percent"
     COUNTS_PER_SECOND = "CountsPerSecond"
     BYTES_PER_SECOND = "BytesPerSecond"
+
+
+class ZonePlacementPolicy(str, Enum, metaclass=CaseInsensitiveEnumMeta):
+    """The availability zone pinning policy for the storage account."""
+
+    ANY = "Any"
+    NONE = "None"
